@@ -1,0 +1,54 @@
+# Qwen2-VL VLA 微调管线 — 完成总结
+
+## 创建的文件
+
+| 文件 | 用途 |
+|------|------|
+| [train_config.yaml](file:///e:/LLM/SurRoL-main/vlm/config/train_config.yaml) | 训练超参配置（模型、LoRA、数据、训练参数） |
+| [qwen_vl_vla.py](file:///e:/LLM/SurRoL-main/vlm/model/qwen_vl_vla.py) | 模型加载（QLoRA 量化 + LoRA 注入 + 保存/加载） |
+| [vla_dataset.py](file:///e:/LLM/SurRoL-main/vlm/dataset/vla_dataset.py) | Qwen2-VL Dataset + Collator（assistant-only label masking） |
+| [train_vla.py](file:///e:/LLM/SurRoL-main/vlm/trainer/train_vla.py) | HuggingFace Trainer 训练脚本 |
+| [infer_vla.py](file:///e:/LLM/SurRoL-main/vlm/trainer/infer_vla.py) | 推理脚本（单图/批量，自动解析 action JSON） |
+
+## 架构流
+
+```mermaid
+graph LR
+    A[train_config.yaml] --> B[train_vla.py]
+    B --> C[qwen_vl_vla.py<br/>模型加载+LoRA]
+    B --> D[vla_dataset.py<br/>数据集+Collator]
+    C --> E[Qwen2-VL + LoRA]
+    D --> F[ShareGPT JSON<br/>training_data.json]
+    E --> G[HF Trainer]
+    F --> G
+    G --> H[LoRA Weights]
+    H --> I[infer_vla.py<br/>推理]
+```
+
+## 验证结果
+
+- ✅ 4 个 Python 文件语法检查通过
+- ✅ YAML 配置文件加载正确：keys = `[model, lora, data, training]`
+
+## 使用方法
+
+### 训练
+```bash
+cd e:\LLM\SurRoL-main
+pip install torch transformers peft accelerate bitsandbytes qwen-vl-utils Pillow pyyaml
+python vlm/trainer/train_vla.py --config vlm/config/train_config.yaml
+```
+
+### 推理
+```bash
+python vlm/trainer/infer_vla.py \
+    --model Qwen/Qwen2-VL-2B-Instruct \
+    --lora-path vlm/out/qwen2vl_vla_lora/lora_weights \
+    --image vlm/dataset/expert_active_track/frames/ep0000/t0000.jpg
+```
+
+## 下一步建议
+
+1. **扩充数据** — 运行 `python vlm/dataset/export_active_track_vla.py --episodes 100 --render` 采集更多数据
+2. **扩展任务** — 通用化数据采集脚本支持 NeedlePick / GauzeRetrieve
+3. **闭环验证** — 编写 VLA → SurRoL 环境闭环评估脚本

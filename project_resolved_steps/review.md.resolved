@@ -1,0 +1,77 @@
+# Qwen2-VL VLA 管线 — 完成总结
+
+## 文件总览
+
+```
+vlm/
+├── config/
+│   └── train_config.yaml          # 训练配置
+├── dataset/
+│   ├── data_processing.py         # 数据处理 (已有)
+│   ├── export_active_track_vla.py # 数据采集 (已有)
+│   └── vla_dataset.py             # Qwen2-VL Dataset + Collator
+├── model/
+│   └── qwen_vl_vla.py             # 模型加载 (QLoRA + LoRA)
+├── trainer/
+│   ├── train_vla.py               # 训练脚本
+│   └── infer_vla.py               # 推理脚本
+├── eval/
+│   └── eval_closed_loop.py        # 闭环评估脚本 [NEW]
+└── out/                           # 训练输出
+```
+
+## 闭环评估流程
+
+```mermaid
+graph TD
+    A[Reset SurRoL Env] --> B[Render Image]
+    B --> C[Downsample to match training]
+    C --> D["VLA Model<br/>Qwen2-VL + LoRA"]
+    D --> E["Parse action JSON<br/>{action: [x, y, z]}"]
+    E --> F{Parse OK?}
+    F -->|Yes| G[env.step action]
+    F -->|No| H[Zero fallback action]
+    H --> G
+    G --> I{Done?}
+    I -->|No| B
+    I -->|Yes| J[Log episode metrics]
+    J --> K{More episodes?}
+    K -->|Yes| A
+    K -->|No| L[Save results JSON + Summary]
+```
+
+### 追踪指标
+| 指标 | 说明 |
+|------|------|
+| `mean_reward` | 平均累计奖励 |
+| `success_rate` | 成功率（如有） |
+| `mean_ep_length` | 平均步数 |
+| `total_parse_fails` | 动作解析失败总次数 |
+
+## 使用方法
+
+### 1. 训练
+```bash
+python vlm/trainer/train_vla.py --config vlm/config/train_config.yaml
+```
+
+### 2. 闭环评估
+```bash
+python vlm/eval/eval_closed_loop.py \
+    --model Qwen/Qwen2-VL-2B-Instruct \
+    --lora-path vlm/out/qwen2vl_vla_lora/lora_weights \
+    --task ActiveTrack-v0 \
+    --episodes 10 \
+    --max-steps 200 \
+    --save-video \
+    --compare-oracle
+```
+
+关键参数：
+- `--save-video`: 保存每个 episode 的 MP4 视频
+- `--compare-oracle`: 对比 VLA 和 oracle 策略的动作差异
+- `--task`: 支持所有已注册的 SurRoL 任务
+
+## 验证
+- ✅ 所有 Python 文件语法通过
+- ✅ YAML 配置加载正确

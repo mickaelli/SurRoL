@@ -1,0 +1,60 @@
+# ──────────────────────────────────────────────────────────────
+#  SurRoL-VLA  ·  Qwen2-VL LoRA Fine-tuning Configuration
+# ──────────────────────────────────────────────────────────────
+
+# ── Model ─────────────────────────────────────────────────────
+model:
+  name_or_path: "Qwen/Qwen2-VL-2B-Instruct"   # 或 Qwen/Qwen2-VL-7B-Instruct
+  torch_dtype: "bfloat16"                       # bfloat16 | float16
+  # 4-bit 量化 (QLoRA), 设 false 可关闭量化用全精度 LoRA
+  quantization:
+    enabled: true
+    bits: 4                                     # 4 or 8
+    quant_type: "nf4"                           # nf4 | fp4
+    double_quant: true
+
+# ── LoRA ──────────────────────────────────────────────────────
+lora:
+  r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  target_modules:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+# ── Data ──────────────────────────────────────────────────────
+data:
+  # Recommended: use the merged multi-task file produced by
+  # `python vlm/dataset/convert_manifests.py --out vlm/dataset`.
+  training_data: "vlm/dataset/training_data_multitask.json"
+  image_root: "vlm/dataset"
+  max_length: 1024                              # 最大 token 序列长度
+  min_pixels: 256
+  max_pixels: 512000                            # Qwen2-VL 动态分辨率上限
+
+# ── Training ──────────────────────────────────────────────────
+training:
+  output_dir: "vlm/out/qwen2vl_vla_lora"
+  num_train_epochs: 10
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 8
+  learning_rate: 2.0e-5
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  lr_scheduler_type: "cosine"
+  logging_steps: 5
+  save_strategy: "epoch"
+  save_total_limit: 3
+  fp16: false
+  bf16: true
+  gradient_checkpointing: true
+  dataloader_num_workers: 2
+  remove_unused_columns: false
+  seed: 42
