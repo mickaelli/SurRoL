@@ -1,89 +1,79 @@
-# SurRoL: An Open-source Reinforcement Learning Centered and dVRK Compatible Platform for Surgical Robot Learning
+# SurRoL-VLM
 
-### [[Project Website]](https://med-air.github.io/SurRoL/)
+This repository is a secondary development project based on [SurRoL](https://github.com/med-air/SurRoL). It keeps the SurRoL simulation foundation and extends it with VLM/VLA/RLAIF-related code for surgical robot control experiments.
 
-IEEE RA-L'23 [Human-in-the-loop Embodied Intelligence with Interactive Simulation Environment for Surgical Robot Learning](https://arxiv.org/abs/2301.00452) <br>
-ICRA'23 [Demonstration-Guided Reinforcement Learning with Efficient Exploration for Task Automation of Surgical Robot](https://arxiv.org/abs/2302.09772) <br>
-ISMR'22 [Integrating artificial intelligence and augmented reality in robotic surgery: An initial dVRK study using a surgical education scenario](https://arxiv.org/abs/2201.00383) <br>
-IROS'21 [SurRoL: An open-source reinforcement learning centered and dVRK compatible platform for surgical robot learning](https://arxiv.org/abs/2108.13035)
+The repository inherits SurRoL code under the original MIT license. See [LICENSE](LICENSE) for the license text.
 
+## Overview
 
-<p align="center">
-   <img src="resources/img/surrol-overview.png" alt="SurRoL"/>
-</p>
+- Base simulator: SurRoL + PyBullet + dVRK-compatible task abstractions
+- Main extension: `vlm/` pipeline for dataset export, VLA fine-tuning, inference service, VLM reward scoring, and RLAIF training
+- Current practical focus: static/PSM task experiments such as `StaticTrack`, `NeedlePick`, and `GauzeRetrieve`
 
-## Features
+## Repository Layout
 
-- [dVRK](https://github.com/jhu-dvrk/sawIntuitiveResearchKit/wiki) compatible [robots](./surrol/robots).
-- [Gym](https://github.com/openai/gym) style [API](./surrol/gym) for reinforcement learning.
-- Ten surgical-related [tasks](./surrol/tasks).
-- Various object [assets](./surrol/assets).
-- Based on [PyBullet]((https://github.com/bulletphysics/bullet3)) for physics simulation.
+- `surrol/`: core simulator, robot models, tasks, wrappers, assets
+- `vlm/`: VLM-related code
+- `vlm/dataset/`: expert export, manifest conversion, dataset utilities
+- `vlm/trainer/`: VLA and RLAIF training/inference entrypoints
+- `vlm/eval/`: closed-loop evaluation, zero-shot evaluation, plotting, VLA server
+- `tests/`: notebooks and basic environment checks
+- `run/`: legacy experiment scripts
 
-## Installation
+## Quick Start
 
-The project is built on Ubuntu with Python 3.7,
-[PyBullet](https://github.com/bulletphysics/bullet3),
-[Gym 0.15.6](https://github.com/openai/gym/releases/tag/0.15.6),
-and evaluated with [Baselines](https://github.com/openai/baselines),
-[TensorFlow 1.14](https://www.tensorflow.org/install/pip).
+### 1. Install
 
-### Prepare environment
+This codebase mixes legacy SurRoL components and newer PyTorch/VLM components. In practice, they are often run in separate environments or on separate machines.
 
-1. Create a conda virtual environment and activate it.
+Basic local editable install:
 
-    ```shell
-    conda create -n surrol python=3.7 -y
-    conda activate surrol
-    ```
-
-2. Install gym (slightly modified), tensorflow-gpu==1.14, baselines (modified).
-
-### Install SurRoL
-
-```shell
-git clone https://github.com/med-air/SurRoL.git
-cd SurRoL
+```bash
 pip install -e .
 ```
 
-## Get started
+For modern SB3-based training:
 
-The robot control API follows [dVRK](https://github.com/jhu-dvrk/dvrk-ros/tree/master/dvrk_python/src/dvrk)
-(before "crtk"), which is compatible with the real-world dVRK robots.
-
-You may have a look at the jupyter notebooks in [tests](./tests).
-There are some test files for [PSM](./tests/test_psm.ipynb) and [ECM](./tests/test_ecm.ipynb),
-that contains the basic procedures to start the environment, load the robot, and test the kinematics.
-
-We also provide some [run files](./run) to evaluate the environments using baselines.
-
-## Modern SB3 training (PyTorch)
-
-Use Stable-Baselines3 with the lightweight wrapper in [surrol/wrappers/surrol_sb3.py](surrol/wrappers/surrol_sb3.py). A minimal setup:
-
-```shell
+```bash
 pip install torch>=2.0 gymnasium "stable-baselines3[extra]>=2.0.0"
+```
+
+### 2. Run SB3 baseline training
+
+```bash
 python train_sb3.py --task peg_transfer --obs-mode rgb --total-timesteps 100000
 ```
 
-Key flags:
-- `--task`: one of needle_reach, gauze_retrieve, needle_pick, peg_transfer, needle_regrasp, bipeg_transfer, ecm_reach, mis_orient, static_track, active_track
-- `--obs-mode`: state | rgb | both | rgb+state (rgb+state is an alias for combined image+state)
-- `--max-episode-steps`: override default horizon if needed
-- `--preset`: use `mid` for tuned mid-scale defaults (n_steps, batch, lr per obs-mode)
+### 3. VLM workflow
 
-For goal-conditioned training with HER + TD3:
+Typical VLM workflow:
 
-```shell
-python train_sb3_her.py --task peg_transfer --obs-mode state --total-timesteps 100000
-```
+1. Export expert data with `vlm/dataset/export_expert_universal.py`
+2. Convert `manifest.jsonl` into training data with `vlm/dataset/convert_manifests.py`
+3. Fine-tune a VLA model with `vlm/trainer/train_vla.py`
+4. Serve inference with `vlm/eval/vla_server.py`
+5. Run closed-loop evaluation with `vlm/eval/eval_closed_loop.py`
 
-## Citation
+Example config file:
 
-If you find the paper or the code helpful to your research, please cite the project.
+- [train_config.yaml](E:/LLM/SurRoL-main/vlm/config/train_config.yaml)
 
-```
+## Notes
+
+- `baselines/` is intentionally not tracked in this repository. If you need OpenAI Baselines-related legacy experiments, prepare that dependency separately.
+- The VLM and simulation environments may be split across different machines. The repository supports client/server inference and remote reward scoring for that reason.
+- Some scripts still reflect mixed legacy and experimental workflows. Treat `vlm/` as the main entrypoint for current multimodal work.
+
+## Upstream Attribution
+
+This project is derived from SurRoL:
+
+- Project page: <https://med-air.github.io/SurRoL/>
+- Paper: [SurRoL: An Open-source Reinforcement Learning Centered and dVRK Compatible Platform for Surgical Robot Learning](https://arxiv.org/abs/2108.13035)
+
+If you use this repository in research, cite the original SurRoL work as appropriate.
+
+```bibtex
 @inproceedings{xu2021surrol,
   title={SurRoL: An Open-source Reinforcement Learning Centered and dVRK Compatible Platform for Surgical Robot Learning},
   author={Xu, Jiaqi and Li, Bin and Lu, Bo and Liu, Yun-Hui and Dou, Qi and Heng, Pheng-Ann},
@@ -92,19 +82,7 @@ If you find the paper or the code helpful to your research, please cite the proj
   organization={IEEE}
 }
 ```
+
 ## License
 
-SurRoL is released under the [MIT license](LICENSE).
-
-## Acknowledgement
-
-The code is built with the reference of [dVRK](https://github.com/jhu-dvrk/sawIntuitiveResearchKit/wiki),
-[AMBF](https://github.com/WPI-AIM/ambf),
-[dVRL](https://github.com/ucsdarclab/dVRL),
-[RLBench](https://github.com/stepjam/RLBench),
-[Decentralized-MultiArm](https://github.com/columbia-ai-robotics/decentralized-multiarm),
-[Ravens](https://github.com/google-research/ravens), etc.
-
-
-## Contact
-For any questions, please feel free to email <a href="mailto:qidou@cuhk.edu.hk">qidou@cuhk.edu.hk</a>
+This repository includes code derived from SurRoL and is distributed under the MIT license. See [LICENSE](LICENSE).
